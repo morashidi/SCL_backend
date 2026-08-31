@@ -8,6 +8,7 @@ const userRoutes = require("./routes/user.route");
 const callRoutes = require("./routes/call.route");
 const  application = require("./routes/application.route");
 const dashboardRoutes = require("./routes/dashboard.routes");
+const mandoobRoutes = require("./routes/mandoob.routes");
 const path = require("path");
 
 
@@ -22,6 +23,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/applications", application);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/mandoobs", mandoobRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 connectDB();
