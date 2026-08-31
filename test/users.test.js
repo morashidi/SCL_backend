@@ -19,7 +19,7 @@ describe("User routes", () => {
                     name: "Call Center",
                     username: "agent1",
                     password,
-                    role: "call_center",
+                    role: "recruiter",
                 });
 
             assert.strictEqual(res.status, 401);
@@ -61,7 +61,7 @@ describe("User routes", () => {
                 name: "Existing Agent",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -71,7 +71,7 @@ describe("User routes", () => {
                     name: "New Agent",
                     username: "AGENT1",
                     password,
-                    role: "call_center",
+                    role: "recruiter",
                 });
 
             assert.strictEqual(res.status, 409);
@@ -93,14 +93,14 @@ describe("User routes", () => {
                     name: "Call Center",
                     username: "Agent1",
                     password,
-                    role: "call_center",
+                    role: "recruiter",
                 });
 
             assert.strictEqual(res.status, 201);
             assert.strictEqual(res.body.message, "User created successfully");
             assert.strictEqual(res.body.user.name, "Call Center");
             assert.strictEqual(res.body.user.username, "agent1");
-            assert.strictEqual(res.body.user.role, "call_center");
+            assert.strictEqual(res.body.user.role, "recruiter");
             assert.strictEqual(res.body.user.password, undefined);
 
             const created = await User.findOne({ username: "agent1" });
@@ -138,7 +138,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -162,7 +162,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -197,7 +197,7 @@ describe("User routes", () => {
                     name: "Someone",
                     username: "someone",
                     password,
-                    role: "call_center",
+                    role: "recruiter",
                 });
 
             assert.strictEqual(res.status, 403);
@@ -228,7 +228,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
             await seedUser({
                 name: "Delivery",
@@ -262,7 +262,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
             await seedUser({
                 name: "Delivery",
@@ -273,14 +273,14 @@ describe("User routes", () => {
 
             const res = await request(app)
                 .get("/api/users")
-                .query({ role: "call_center" })
+                .query({ role: "recruiter" })
                 .set(authHeader(token));
 
             assert.strictEqual(res.status, 200);
             assert.strictEqual(res.body.total, 1);
             assert.strictEqual(res.body.items.length, 1);
             assert.strictEqual(res.body.items[0].username, "agent1");
-            assert.strictEqual(res.body.items[0].role, "call_center");
+            assert.strictEqual(res.body.items[0].role, "recruiter");
         });
 
         it("searches users by name or username", async () => {
@@ -295,7 +295,7 @@ describe("User routes", () => {
                 name: "Ahmed Agent",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
             await seedUser({
                 name: "Delivery",
@@ -326,7 +326,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
             await seedUser({
                 name: "Delivery",
@@ -368,7 +368,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             await request(app)
@@ -422,7 +422,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -432,7 +432,7 @@ describe("User routes", () => {
             assert.strictEqual(res.status, 200);
             assert.strictEqual(res.body.user.name, "Call Center");
             assert.strictEqual(res.body.user.username, "agent1");
-            assert.strictEqual(res.body.user.role, "call_center");
+            assert.strictEqual(res.body.user.role, "recruiter");
             assert.strictEqual(res.body.user.password, undefined);
             assert.strictEqual(String(res.body.user.id), String(target._id));
         });
@@ -449,7 +449,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             await request(app)
@@ -504,7 +504,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -531,7 +531,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -558,7 +558,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -578,7 +578,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -630,7 +630,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -656,7 +656,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -682,7 +682,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const res = await request(app)
@@ -701,7 +701,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             const target = await seedUser({
@@ -734,7 +734,7 @@ describe("User routes", () => {
                 name: "Call Center",
                 username: "agent1",
                 password,
-                role: "call_center",
+                role: "recruiter",
             });
 
             await request(app)

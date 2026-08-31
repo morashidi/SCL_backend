@@ -5,7 +5,7 @@ const Token = require("../models/token.model");
 
 const ROLE_RANK = {
     admin: 3,
-    call_center: 2,
+    recruiter: 2,
     mandoob: 1,
 };
 
@@ -61,13 +61,13 @@ const createUser = async (req, res) => {
             });
         }
 
-        if (req.user.role === "admin" && role !== "call_center") {
+        if (req.user.role === "admin" && role !== "recruiter") {
             return res.status(403).json({
                 message: "Admin can only create call center accounts"
             });
         }
 
-        if (req.user.role === "call_center" && role !== "mandoob") {
+        if (req.user.role === "recruiter" && role !== "mandoob") {
             return res.status(403).json({
                 message: "Call center can only create delivery man accounts"
             });

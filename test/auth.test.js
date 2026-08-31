@@ -258,7 +258,7 @@ describe("Auth routes", () => {
                 role: "admin",
             });
 
-            await User.updateOne({ _id: user._id }, { role: "call_center" });
+            await User.updateOne({ _id: user._id }, { role: "recruiter" });
 
             const res = await request(app)
                 .get("/api/auth/me")
