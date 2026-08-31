@@ -1,0 +1,2651 @@
+openapi: 3.0.3
+
+info:
+  title: Delivery Workforce Recruitment & Management System API
+  version: 1.0.0
+  description: >
+    Backend API for the Delivery Workforce Recruitment & Management System.
+
+    This API covers five areas:
+      1. Users & Permissions (role-based access)
+      2. Call Center (leads, calls, AI review, mandoob profiles, companies, training)
+      3. Attendance (call center BLE, training, job location tracking)
+      4. Finance (loans, deductions, salary import, payments)
+      5. Owner Dashboard (KPIs)
+      6. Blocklist
+
+    Notes for developers:
+      - All endpoints (except /auth/login) require a Bearer JWT token.
+      - List endpoints are paginated with `page` and `pageSize` query params.
+      - All times are ISO 8601 UTC (e.g. 2026-01-15T10:30:00Z).
+      - Money values are numbers with 2 decimal places, in the system currency.
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Login and token management
+  - name: Users
+    description: User accounts, roles and permissions
+  - name: Leads
+    description: Phone number leads for the call center
+  - name: Calls
+    description: Call logging and AI call review
+  - name: Mandoobs
+    description: Candidate / employee profiles
+  - name: Companies
+    description: Third-party companies mandoobs are placed with
+  - name: Training
+    description: Training sessions and assignments
+  - name: Attendance
+    description: Call center BLE, training and job attendance
+  - name: Blocklist
+    description: Blocked phone numbers / national IDs
+  - name: Loans
+    description: Loan requests and approvals
+  - name: Deductions
+    description: Salary deductions
+  - name: Salaries
+    description: Monthly salary import from third-party companies
+  - name: Payments
+    description: Salary disbursement records
+  - name: Dashboard
+    description: Owner dashboard KPIs
+
+paths:
+
+  # =========================================================
+  # AUTH
+  # =========================================================
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in with username/phone and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Get a new access token using a refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: New tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out and invalidate the current refresh token
+      responses:
+        '204':
+          description: Logged out
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the currently logged-in user
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  # =========================================================
+  # USERS & ROLES
+  # =========================================================
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/RoleName'
+        - name: search
+          in: query
+          description: Search by name, username or phone
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Page of users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+    post:
+      tags: [Users]
+      summary: Create a user account
+      description: >
+        The role you can create depends on your own role (see role hierarchy):
+        System Admin can create anyone; Owner/Admin can create Call Center,
+        Finance and Mandoob; Call Center can create Mandoob only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /users/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Users]
+      summary: Get a user
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Users]
+      summary: Update a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Users]
+      summary: Remove a user account
+      description: You cannot remove a role above your own. The System Administrator user can never be removed.
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /roles:
+    get:
+      tags: [Users]
+      summary: List roles and their permissions
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+    post:
+      tags: [Users]
+      summary: Create a custom role with permissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreate'
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+
+  /roles/{roleId}:
+    parameters:
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      tags: [Users]
+      summary: Update a role's permissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreate'
+      responses:
+        '200':
+          description: Updated role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+
+  # =========================================================
+  # LEADS
+  # =========================================================
+  /leads:
+    get:
+      tags: [Leads]
+      summary: List leads
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/CallOutcome'
+        - name: assignedAgentId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Page of leads
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Lead'
+    post:
+      tags: [Leads]
+      summary: Add leads (single or bulk) from the intake form/API
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [leads]
+              properties:
+                leads:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LeadCreate'
+      responses:
+        '201':
+          description: Leads created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lead'
+
+  /leads/{leadId}:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Leads]
+      summary: Get a lead
+      responses:
+        '200':
+          description: Lead
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /leads/{leadId}/reschedule:
+    parameters:
+      - name: leadId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Leads]
+      summary: Flag a declined lead for a callback
+      description: Reschedule to the same agent later, or reassign to another agent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduledAt]
+              properties:
+                scheduledAt:
+                  type: string
+                  format: date-time
+                reassignToAgentId:
+                  type: string
+                  description: If set, the lead is reassigned to this agent.
+      responses:
+        '200':
+          description: Lead rescheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lead'
+
+  # =========================================================
+  # CALLS
+  # =========================================================
+  /calls:
+    get:
+      tags: [Calls]
+      summary: List calls
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: agentId
+          in: query
+          schema:
+            type: string
+        - name: leadId
+          in: query
+          schema:
+            type: string
+        - name: outcome
+          in: query
+          schema:
+            $ref: '#/components/schemas/CallOutcome'
+      responses:
+        '200':
+          description: Page of calls
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Call'
+    post:
+      tags: [Calls]
+      summary: Log a call outcome
+      description: >
+        Records the agent's outcome for a lead. The lead's phone number is
+        checked against the blocklist first; a blocked number is rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallCreate'
+      responses:
+        '201':
+          description: Call logged
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Call'
+        '409':
+          description: Lead phone number is blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /calls/{callId}:
+    parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Calls]
+      summary: Get a call
+      responses:
+        '200':
+          description: Call
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Call'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /calls/{callId}/ai-review:
+    parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      tags: [Calls]
+      summary: Attach the AI review result and recording to a call
+      description: >
+        The mobile app runs the STT + LLM pipeline and sends the resulting
+        detected status, summary, and the call recording here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallAiReview'
+      responses:
+        '200':
+          description: Review saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Call'
+
+  /calls/{callId}/recording:
+    parameters:
+      - name: callId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Calls]
+      summary: Upload the call recording audio file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Recording uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recordingUrl:
+                    type: string
+    get:
+      tags: [Calls]
+      summary: Get the call recording (for supervisor review / disputes)
+      responses:
+        '200':
+          description: Audio file
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================================================
+  # MANDOOBS (candidates / employees)
+  # =========================================================
+  /mandoobs:
+    get:
+      tags: [Mandoobs]
+      summary: List mandoobs
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/EmploymentStatus'
+        - name: companyId
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Search by name, phone or national ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Page of mandoobs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Mandoob'
+    post:
+      tags: [Mandoobs]
+      summary: Create a mandoob profile
+      description: >
+        Created by the call center once the mandoob comes to the office.
+        The phone number and national ID are checked against the blocklist first;
+        a match prevents creation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MandoobCreate'
+      responses:
+        '201':
+          description: Mandoob created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mandoob'
+        '409':
+          description: Phone or national ID is blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /mandoobs/{mandoobId}:
+    parameters:
+      - $ref: '#/components/parameters/MandoobId'
+    get:
+      tags: [Mandoobs]
+      summary: Get a mandoob profile
+      responses:
+        '200':
+          description: Mandoob
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mandoob'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Mandoobs]
+      summary: Update a mandoob profile
+      description: Includes updating employment status and payout recipient details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MandoobUpdate'
+      responses:
+        '200':
+          description: Updated mandoob
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mandoob'
+
+  /mandoobs/{mandoobId}/companies:
+    parameters:
+      - $ref: '#/components/parameters/MandoobId'
+    get:
+      tags: [Mandoobs]
+      summary: List the companies this mandoob is associated with
+      responses:
+        '200':
+          description: Company links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MandoobCompany'
+    post:
+      tags: [Mandoobs]
+      summary: Link a company to the mandoob with their details for that company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MandoobCompanyCreate'
+      responses:
+        '201':
+          description: Company linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MandoobCompany'
+
+  /mandoobs/{mandoobId}/companies/{linkId}:
+    parameters:
+      - $ref: '#/components/parameters/MandoobId'
+      - name: linkId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      tags: [Mandoobs]
+      summary: Update the mandoob's details for a company (starId, username, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MandoobCompanyCreate'
+      responses:
+        '200':
+          description: Updated link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MandoobCompany'
+    delete:
+      tags: [Mandoobs]
+      summary: Unlink a company from the mandoob
+      responses:
+        '204':
+          description: Unlinked
+
+  /mandoobs/{mandoobId}/salaries:
+    parameters:
+      - $ref: '#/components/parameters/MandoobId'
+    get:
+      tags: [Mandoobs]
+      summary: Salary history for a mandoob (per company, per period)
+      responses:
+        '200':
+          description: Salary lines
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalaryLine'
+
+  /mandoobs/{mandoobId}/loans:
+    parameters:
+      - $ref: '#/components/parameters/MandoobId'
+    get:
+      tags: [Mandoobs]
+      summary: Loan history for a mandoob (mobile self-service view)
+      description: Read-only view of past and current loans with installment schedule.
+      responses:
+        '200':
+          description: Loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Loan'
+
+  /mandoobs/{mandoobId}/deductions:
+    parameters:
+      - $ref: '#/components/parameters/MandoobId'
+    get:
+      tags: [Mandoobs]
+      summary: Deduction history for a mandoob
+      responses:
+        '200':
+          description: Deductions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deduction'
+
+  # =========================================================
+  # COMPANIES (third-party)
+  # =========================================================
+  /companies:
+    get:
+      tags: [Companies]
+      summary: List third-party companies
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Page of companies
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Company'
+    post:
+      tags: [Companies]
+      summary: Create a third-party company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreate'
+      responses:
+        '201':
+          description: Company created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+
+  /companies/{companyId}:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Companies]
+      summary: Get a company
+      responses:
+        '200':
+          description: Company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Companies]
+      summary: Update a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyCreate'
+      responses:
+        '200':
+          description: Updated company
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+
+  # =========================================================
+  # TRAINING
+  # =========================================================
+  /training-sessions:
+    get:
+      tags: [Training]
+      summary: List training sessions
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: companyId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Page of training sessions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrainingSession'
+    post:
+      tags: [Training]
+      summary: Create a training session (time + zone tied to a company)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingSessionCreate'
+      responses:
+        '201':
+          description: Training session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingSession'
+
+  /training-sessions/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Training]
+      summary: Get a training session
+      responses:
+        '200':
+          description: Training session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingSession'
+
+  /training-sessions/{sessionId}/assignments:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Training]
+      summary: List mandoobs assigned to this session and their attendance
+      responses:
+        '200':
+          description: Assignments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingAssignment'
+    post:
+      tags: [Training]
+      summary: Assign a mandoob to this training session
+      description: On assignment the mandoob receives an in-app notification to attend.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mandoobId]
+              properties:
+                mandoobId:
+                  type: string
+      responses:
+        '201':
+          description: Mandoob assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingAssignment'
+
+  # =========================================================
+  # ATTENDANCE
+  # =========================================================
+  /attendance/call-center:
+    post:
+      tags: [Attendance]
+      summary: Call center staff BLE check-in / check-out
+      description: The app sends the BLE beacon's broadcasted value to confirm office location.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BleAttendanceCreate'
+      responses:
+        '201':
+          description: Attendance recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BleAttendance'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /attendance/training:
+    post:
+      tags: [Attendance]
+      summary: Report training location events (used to auto-mark attendance)
+      description: >
+        The app reports the candidate entering the training zone. Staying in the
+        zone for the required period marks the assignment as attended.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignmentId, latitude, longitude, recordedAt]
+              properties:
+                assignmentId:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+                recordedAt:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: Event processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingAssignment'
+
+  /attendance/locations:
+    post:
+      tags: [Attendance]
+      summary: Upload job location points (supports offline batch sync)
+      description: >
+        The app captures location every 5 minutes and sends batches every 10
+        minutes. Cached points from offline periods are sent here on reconnect.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points]
+              properties:
+                points:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/LocationPoint'
+      responses:
+        '202':
+          description: Points accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: integer
+
+  /attendance/locations/live:
+    get:
+      tags: [Attendance]
+      summary: Latest known location of active mandoobs (for the live map)
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Latest locations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MandoobLocation'
+
+  # =========================================================
+  # BLOCKLIST
+  # =========================================================
+  /blocklist:
+    get:
+      tags: [Blocklist]
+      summary: List block entries
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: active
+          in: query
+          description: Filter by active (not yet unblocked) entries
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Page of block entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BlockEntry'
+    post:
+      tags: [Blocklist]
+      summary: Add a block entry (by phone and/or national ID)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockEntryCreate'
+      responses:
+        '201':
+          description: Block entry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockEntry'
+
+  /blocklist/check:
+    get:
+      tags: [Blocklist]
+      summary: Check if a phone number or national ID is blocked
+      parameters:
+        - name: phone
+          in: query
+          schema:
+            type: string
+        - name: nationalId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  blocked:
+                    type: boolean
+                  entry:
+                    $ref: '#/components/schemas/BlockEntry'
+
+  /blocklist/{entryId}/unblock:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Blocklist]
+      summary: Unblock an entry (logged action)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Entry unblocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlockEntry'
+
+  # =========================================================
+  # LOANS
+  # =========================================================
+  /loans:
+    get:
+      tags: [Loans]
+      summary: List loans
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: mandoobId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/LoanStatus'
+      responses:
+        '200':
+          description: Page of loans
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Loan'
+    post:
+      tags: [Loans]
+      summary: Request a loan
+      description: >
+        Requested by the mandoob (mobile app) or by the call center on their behalf.
+        Repayment is set as a number of monthly installments of a given amount.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanCreate'
+      responses:
+        '201':
+          description: Loan requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+
+  /loans/{loanId}:
+    parameters:
+      - name: loanId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Loans]
+      summary: Get a loan (includes eligibility result and installment schedule)
+      responses:
+        '200':
+          description: Loan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /loans/{loanId}/decision:
+    parameters:
+      - name: loanId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Loans]
+      summary: Approve or reject a loan
+      description: >
+        The approver (Finance by default) approves or rejects. To approve a loan
+        for a mandoob flagged as not eligible, set exception=true and give a reason;
+        the override is recorded.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanDecision'
+      responses:
+        '200':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # =========================================================
+  # DEDUCTIONS
+  # =========================================================
+  /deductions:
+    get:
+      tags: [Deductions]
+      summary: List deductions
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: mandoobId
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/DeductionType'
+      responses:
+        '200':
+          description: Page of deductions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Deduction'
+    post:
+      tags: [Deductions]
+      summary: Record a deduction against a mandoob
+      description: Automatically factored into the next salary calculation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeductionCreate'
+      responses:
+        '201':
+          description: Deduction recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deduction'
+
+  /deductions/{deductionId}:
+    parameters:
+      - name: deductionId
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      tags: [Deductions]
+      summary: Modify a deduction (e.g. while paying salaries)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeductionCreate'
+      responses:
+        '200':
+          description: Updated deduction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deduction'
+
+  # =========================================================
+  # SALARIES
+  # =========================================================
+  /salaries/imports:
+    get:
+      tags: [Salaries]
+      summary: List salary import batches
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Page of import batches
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SalaryImport'
+    post:
+      tags: [Salaries]
+      summary: Upload a standardized salary Excel file for validation
+      description: >
+        Upload the reformatted (standardized template) Excel file for one company
+        and period. The file is validated but not committed yet. Validation flags
+        unmatched IDs, duplicate rows and missing fields for review.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, companyId, period]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                companyId:
+                  type: string
+                period:
+                  type: string
+                  description: Salary period in YYYY-MM format.
+                  example: "2026-01"
+      responses:
+        '201':
+          description: Import batch created (pending review)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryImport'
+
+  /salaries/imports/{importId}:
+    parameters:
+      - name: importId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Salaries]
+      summary: Get an import batch with its validation results
+      responses:
+        '200':
+          description: Import batch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryImport'
+
+  /salaries/imports/{importId}/commit:
+    parameters:
+      - name: importId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Salaries]
+      summary: Commit a validated import batch
+      description: Creates the salary lines for the period once the reviewer approves.
+      responses:
+        '200':
+          description: Import committed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryImport'
+        '409':
+          description: Batch has blocking validation errors and cannot be committed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /salaries/lines:
+    get:
+      tags: [Salaries]
+      summary: List salary lines
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: mandoobId
+          in: query
+          schema:
+            type: string
+        - name: companyId
+          in: query
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: "2026-01"
+      responses:
+        '200':
+          description: Page of salary lines
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SalaryLine'
+    post:
+      tags: [Salaries]
+      summary: Add a salary line manually
+      description: Used when the Excel file has no starId column, or for one-off entries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SalaryLineCreate'
+      responses:
+        '201':
+          description: Salary line created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryLine'
+
+  # =========================================================
+  # PAYMENTS (disbursement)
+  # =========================================================
+  /payments:
+    get:
+      tags: [Payments]
+      summary: List payment records
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: mandoobId
+          in: query
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: "2026-01"
+      responses:
+        '200':
+          description: Page of payments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Payment'
+    post:
+      tags: [Payments]
+      summary: Record a manual payment (cash, wallet, bank transfer)
+      description: >
+        Records a payment made outside the system. Attach the confirming
+        screenshot via the /payments/{paymentId}/screenshot endpoint.
+        Net amount reflects salary minus deductions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentCreate'
+      responses:
+        '201':
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /payments/payout:
+    post:
+      tags: [Payments]
+      summary: Trigger a one-click payout run (when a payment API is integrated)
+      description: >
+        Optional path used when a wallet/bank payout API (e.g. Vodafone Cash,
+        Paymob) is available. Sends single or bulk payouts to the mandoobs'
+        registered recipient numbers.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [period, mandoobIds]
+              properties:
+                period:
+                  type: string
+                  example: "2026-01"
+                mandoobIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '202':
+          description: Payout run started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+
+  /payments/{paymentId}:
+    parameters:
+      - name: paymentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Payments]
+      summary: Get a payment record
+      responses:
+        '200':
+          description: Payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/{paymentId}/screenshot:
+    parameters:
+      - name: paymentId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Payments]
+      summary: Attach a confirming screenshot to a manual payment
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Screenshot attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  # =========================================================
+  # OWNER DASHBOARD
+  # =========================================================
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: System-wide KPI summary
+      description: >
+        Returns the core KPIs for the owner dashboard. Use `from`/`to` to scope
+        time-based metrics to a period.
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: KPI summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+
+  /dashboard/agent-leaderboard:
+    get:
+      tags: [Dashboard]
+      summary: Call center agent leaderboard
+      description: Conversion rate and AI quality score per agent.
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Agent leaderboard rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentPerformance'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Page number, starting at 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      description: Items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+    MandoobId:
+      name: mandoobId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Not allowed for your role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+
+    # ---------- Shared ----------
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: NOT_FOUND
+        message:
+          type: string
+          example: The requested resource was not found.
+        details:
+          type: array
+          description: Optional field-level validation messages.
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    Page:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+
+    GeoZone:
+      type: object
+      description: A circular geographic zone used for location confirmation.
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        radiusMeters:
+          type: integer
+          default: 100
+
+    # ---------- Auth & Users ----------
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Username or phone number.
+        password:
+          type: string
+          format: password
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds.
+
+    RoleName:
+      type: string
+      description: Built-in roles. Custom roles may also exist.
+      enum:
+        - SYSTEM_ADMIN
+        - OWNER_ADMIN
+        - CALL_CENTER
+        - FINANCE
+        - MANDOOB
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        builtIn:
+          type: boolean
+        permissions:
+          type: array
+          items:
+            type: string
+          example: [loans.approve, deductions.create, users.create]
+
+    RoleCreate:
+      type: object
+      required: [name, permissions]
+      properties:
+        name:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        fullName:
+          type: string
+        username:
+          type: string
+        phone:
+          type: string
+        role:
+          $ref: '#/components/schemas/RoleName'
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    UserCreate:
+      type: object
+      required: [fullName, username, password, role]
+      properties:
+        fullName:
+          type: string
+        username:
+          type: string
+        phone:
+          type: string
+        password:
+          type: string
+          format: password
+        role:
+          $ref: '#/components/schemas/RoleName'
+
+    UserUpdate:
+      type: object
+      properties:
+        fullName:
+          type: string
+        phone:
+          type: string
+        password:
+          type: string
+          format: password
+        active:
+          type: boolean
+
+    # ---------- Call Center ----------
+    CallOutcome:
+      type: string
+      enum:
+        - INTERESTED
+        - NOT_INTERESTED
+        - NO_ANSWER
+        - DECLINED
+        - NOT_CALLED
+        - CALL_DROPPED
+        - NUMBER_UNREACHABLE
+        - INVALID_NUMBER
+        - REQUESTED_CALLBACK
+
+    Lead:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        status:
+          $ref: '#/components/schemas/CallOutcome'
+        assignedAgentId:
+          type: string
+        rescheduledAt:
+          type: string
+          format: date-time
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    LeadCreate:
+      type: object
+      required: [phone]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        assignedAgentId:
+          type: string
+
+    Call:
+      type: object
+      properties:
+        id:
+          type: string
+        leadId:
+          type: string
+        agentId:
+          type: string
+        outcome:
+          $ref: '#/components/schemas/CallOutcome'
+        note:
+          type: string
+          description: Free-text note, expected for non-interested outcomes.
+        recordingUrl:
+          type: string
+        aiReview:
+          $ref: '#/components/schemas/CallAiReview'
+        calledAt:
+          type: string
+          format: date-time
+
+    CallCreate:
+      type: object
+      required: [leadId, outcome]
+      properties:
+        leadId:
+          type: string
+        outcome:
+          $ref: '#/components/schemas/CallOutcome'
+        note:
+          type: string
+
+    CallAiReview:
+      type: object
+      description: Result of the mobile STT + LLM pipeline.
+      properties:
+        detectedStatus:
+          $ref: '#/components/schemas/CallOutcome'
+        matchesAgent:
+          type: boolean
+          description: Whether the AI status matches the agent-assigned status.
+        summary:
+          type: string
+        qualityScore:
+          type: number
+          description: Agent attitude/quality score (0-100).
+
+    Mandoob:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        nationalId:
+          type: string
+        licensePictureUrl:
+          type: string
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        kind:
+          type: string
+          enum: [MANDOOB, DRIVER]
+        cities:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/EmploymentStatus'
+        deactivationReason:
+          type: string
+          nullable: true
+          description: e.g. "No salary - 3 months", manual, or blocklist.
+        payoutRecipient:
+          $ref: '#/components/schemas/PayoutRecipient'
+        userId:
+          type: string
+          description: Linked mobile-app login account.
+        createdAt:
+          type: string
+          format: date-time
+
+    MandoobCreate:
+      type: object
+      required: [name, phone, nationalId, vehicleType, kind, cities]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        nationalId:
+          type: string
+        licensePictureUrl:
+          type: string
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        kind:
+          type: string
+          enum: [MANDOOB, DRIVER]
+        cities:
+          type: array
+          items:
+            type: string
+        payoutRecipient:
+          $ref: '#/components/schemas/PayoutRecipient'
+
+    MandoobUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        licensePictureUrl:
+          type: string
+        vehicleType:
+          $ref: '#/components/schemas/VehicleType'
+        cities:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: '#/components/schemas/EmploymentStatus'
+        payoutRecipient:
+          $ref: '#/components/schemas/PayoutRecipient'
+
+    VehicleType:
+      type: string
+      enum:
+        - BICYCLE
+        - SMALL_PICKUP
+        - LARGE_PICKUP
+
+    EmploymentStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+
+    PayoutRecipient:
+      type: object
+      description: >
+        Where salary/loan funds are sent. May be the mandoob or another person
+        (Big Mandoob) who forwards the funds.
+      properties:
+        recipientName:
+          type: string
+        accountOrWalletNumber:
+          type: string
+        isBigMandoob:
+          type: boolean
+          default: false
+
+    MandoobCompany:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        companyName:
+          type: string
+        starId:
+          type: string
+          description: The mandoob's ID at this company.
+        username:
+          type: string
+
+    MandoobCompanyCreate:
+      type: object
+      required: [companyId]
+      properties:
+        companyId:
+          type: string
+        starId:
+          type: string
+        username:
+          type: string
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CompanyCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    TrainingSession:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        requiredStayMinutes:
+          type: integer
+          description: How long the candidate must stay in the zone to be marked attended.
+        zone:
+          $ref: '#/components/schemas/GeoZone'
+
+    TrainingSessionCreate:
+      type: object
+      required: [companyId, scheduledAt, zone]
+      properties:
+        companyId:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        requiredStayMinutes:
+          type: integer
+        zone:
+          $ref: '#/components/schemas/GeoZone'
+
+    TrainingAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+        sessionId:
+          type: string
+        mandoobId:
+          type: string
+        attended:
+          type: boolean
+        attendedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ---------- Attendance ----------
+    BleAttendanceCreate:
+      type: object
+      required: [beaconValue, type, recordedAt]
+      properties:
+        beaconValue:
+          type: string
+          description: The value broadcast by the office BLE beacon.
+        type:
+          type: string
+          enum: [CHECK_IN, CHECK_OUT]
+        recordedAt:
+          type: string
+          format: date-time
+
+    BleAttendance:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+          enum: [CHECK_IN, CHECK_OUT]
+        recordedAt:
+          type: string
+          format: date-time
+
+    LocationPoint:
+      type: object
+      required: [mandoobId, latitude, longitude, recordedAt]
+      properties:
+        mandoobId:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        recordedAt:
+          type: string
+          format: date-time
+          description: Time the point was captured on the device (may be older when syncing offline data).
+
+    MandoobLocation:
+      type: object
+      properties:
+        mandoobId:
+          type: string
+        name:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        recordedAt:
+          type: string
+          format: date-time
+
+    # ---------- Blocklist ----------
+    BlockEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        nationalId:
+          type: string
+          nullable: true
+        reason:
+          type: string
+        active:
+          type: boolean
+        createdByUserId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        unblockedByUserId:
+          type: string
+          nullable: true
+        unblockReason:
+          type: string
+          nullable: true
+        unblockedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    BlockEntryCreate:
+      type: object
+      description: At least one of phone or nationalId is required.
+      properties:
+        phone:
+          type: string
+        nationalId:
+          type: string
+        reason:
+          type: string
+      required: [reason]
+
+    # ---------- Loans ----------
+    LoanStatus:
+      type: string
+      enum:
+        - PENDING
+        - APPROVED
+        - REJECTED
+        - CLOSED
+
+    Loan:
+      type: object
+      properties:
+        id:
+          type: string
+        mandoobId:
+          type: string
+        principal:
+          type: number
+        installmentAmount:
+          type: number
+        installmentsCount:
+          type: integer
+        installmentsPaid:
+          type: integer
+        remainingBalance:
+          type: number
+        status:
+          $ref: '#/components/schemas/LoanStatus'
+        eligible:
+          type: boolean
+          description: Result of the eligibility rules at request time.
+        exceptionApproved:
+          type: boolean
+        decisionByUserId:
+          type: string
+          nullable: true
+        decisionReason:
+          type: string
+          nullable: true
+        schedule:
+          type: array
+          items:
+            $ref: '#/components/schemas/LoanInstallment'
+        createdAt:
+          type: string
+          format: date-time
+
+    LoanInstallment:
+      type: object
+      properties:
+        number:
+          type: integer
+        amount:
+          type: number
+        dueDate:
+          type: string
+          format: date
+        paid:
+          type: boolean
+
+    LoanCreate:
+      type: object
+      required: [mandoobId, principal, installmentsCount]
+      properties:
+        mandoobId:
+          type: string
+        principal:
+          type: number
+        installmentsCount:
+          type: integer
+        installmentAmount:
+          type: number
+          description: Optional; if omitted it is calculated from principal / installmentsCount.
+
+    LoanDecision:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [APPROVE, REJECT]
+        exception:
+          type: boolean
+          default: false
+          description: Set true to approve despite a not-eligible flag.
+        reason:
+          type: string
+          description: Required when exception is true.
+
+    # ---------- Deductions ----------
+    DeductionType:
+      type: string
+      enum:
+        - LOAN_REPAYMENT
+        - DAMAGE
+        - LOSS
+
+    Deduction:
+      type: object
+      properties:
+        id:
+          type: string
+        mandoobId:
+          type: string
+        type:
+          $ref: '#/components/schemas/DeductionType'
+        amount:
+          type: number
+        reason:
+          type: string
+        loanId:
+          type: string
+          nullable: true
+          description: Set when the deduction is a loan repayment.
+        recordedByUserId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    DeductionCreate:
+      type: object
+      required: [mandoobId, type, amount]
+      properties:
+        mandoobId:
+          type: string
+        type:
+          $ref: '#/components/schemas/DeductionType'
+        amount:
+          type: number
+        reason:
+          type: string
+        loanId:
+          type: string
+
+    # ---------- Salaries ----------
+    SalaryImportStatus:
+      type: string
+      enum:
+        - PENDING_REVIEW
+        - COMMITTED
+
+    SalaryImport:
+      type: object
+      properties:
+        id:
+          type: string
+        companyId:
+          type: string
+        period:
+          type: string
+          example: "2026-01"
+        status:
+          $ref: '#/components/schemas/SalaryImportStatus'
+        totalRows:
+          type: integer
+        validRows:
+          type: integer
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalaryImportIssue'
+        createdByUserId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    SalaryImportIssue:
+      type: object
+      properties:
+        row:
+          type: integer
+        type:
+          type: string
+          enum: [UNMATCHED_ID, DUPLICATE_ROW, MISSING_FIELD]
+        message:
+          type: string
+
+    SalaryLine:
+      type: object
+      properties:
+        id:
+          type: string
+        mandoobId:
+          type: string
+        companyId:
+          type: string
+        companyName:
+          type: string
+        period:
+          type: string
+          example: "2026-01"
+        totalSalary:
+          type: number
+        source:
+          type: string
+          enum: [IMPORT, MANUAL]
+        createdAt:
+          type: string
+          format: date-time
+
+    SalaryLineCreate:
+      type: object
+      required: [mandoobId, companyId, period, totalSalary]
+      properties:
+        mandoobId:
+          type: string
+        companyId:
+          type: string
+        period:
+          type: string
+          example: "2026-01"
+        totalSalary:
+          type: number
+
+    # ---------- Payments ----------
+    PaymentMethod:
+      type: string
+      enum:
+        - CASH
+        - VODAFONE_CASH
+        - BANK_TRANSFER
+        - PAYOUT_API
+
+    PaymentStatus:
+      type: string
+      enum:
+        - RECORDED
+        - PENDING
+        - PAID
+        - FAILED
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        mandoobId:
+          type: string
+        period:
+          type: string
+          example: "2026-01"
+        grossAmount:
+          type: number
+          description: Total salary before deductions.
+        deductionsAmount:
+          type: number
+        netAmount:
+          type: number
+          description: Amount actually paid (gross minus deductions).
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        recipient:
+          $ref: '#/components/schemas/PayoutRecipient'
+        screenshotUrl:
+          type: string
+          nullable: true
+        paidByUserId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    PaymentCreate:
+      type: object
+      required: [mandoobId, period, method]
+      properties:
+        mandoobId:
+          type: string
+        period:
+          type: string
+          example: "2026-01"
+        method:
+          $ref: '#/components/schemas/PaymentMethod'
+        netAmount:
+          type: number
+          description: Optional override; if omitted it is calculated from salary minus deductions.
+
+    # ---------- Dashboard ----------
+    DashboardSummary:
+      type: object
+      description: Core KPIs for the owner dashboard.
+      properties:
+        callCenter:
+          type: object
+          properties:
+            conversionRate:
+              type: number
+            callVolume:
+              type: integer
+            aiVsAgentMatchRate:
+              type: number
+            byStatus:
+              type: object
+              additionalProperties:
+                type: integer
+              description: Count per CallOutcome status.
+        attendance:
+          type: object
+          properties:
+            trainingAttendanceRate:
+              type: number
+            jobAttendanceRate:
+              type: number
+            trainingNoShowRate:
+              type: number
+        finance:
+          type: object
+          properties:
+            loansOutstanding:
+              type: number
+            loansRecovered:
+              type: number
+            loanDelinquencyRate:
+              type: number
+            deductionsApplied:
+              type: number
+            salariesDisbursed:
+              type: number
+        headcount:
+          type: object
+          properties:
+            activeEmployees:
+              type: integer
+            byStatus:
+              type: object
+              additionalProperties:
+                type: integer
+            byCompany:
+              type: array
+              items:
+                type: object
+                properties:
+                  companyId:
+                    type: string
+                  companyName:
+                    type: string
+                  count:
+                    type: integer
+        avgTimeToFillDays:
+          type: number
+          description: Average days from first call to becoming an active mandoob.
+        blockedCount:
+          type: integer
+
+    AgentPerformance:
+      type: object
+      properties:
+        agentId:
+          type: string
+        agentName:
+          type: string
+        conversionRate:
+          type: number
+        avgQualityScore:
+          type: number
+        callVolume:
+          type: integer
