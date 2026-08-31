@@ -123,7 +123,7 @@ describe("User routes", () => {
                     name: "Delivery",
                     username: "driver1",
                     password,
-                    role: "delivery_man",
+                    role: "mandoob",
                 });
 
             assert.strictEqual(res.status, 403);
@@ -148,12 +148,12 @@ describe("User routes", () => {
                     name: "Delivery",
                     username: "driver1",
                     password,
-                    role: "delivery_man",
+                    role: "mandoob",
                 });
 
             assert.strictEqual(res.status, 201);
             assert.strictEqual(res.body.message, "User created successfully");
-            assert.strictEqual(res.body.user.role, "delivery_man");
+            assert.strictEqual(res.body.user.role, "mandoob");
             assert.strictEqual(res.body.user.username, "driver1");
         });
 
@@ -187,7 +187,7 @@ describe("User routes", () => {
                 name: "Delivery",
                 username: "driver1",
                 password,
-                role: "delivery_man",
+                role: "mandoob",
             });
 
             const res = await request(app)

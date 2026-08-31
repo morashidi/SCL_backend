@@ -25,10 +25,10 @@ const createMandoobProfile = async (req, res, next) => {
       });
     }
 
-    if (user.role !== "delivery_man") {
+    if (user.role !== "mandoob") {
       return res.status(400).json({
         success: false,
-        message: "User is not a delivery_man",
+        message: "User is not a mandoob",
       });
     }
 

@@ -29,13 +29,13 @@ const createUser = async (req, res) => {
             });
         }
 
-        if (req.user.role === "call_center" && role !== "delivery_man") {
+        if (req.user.role === "call_center" && role !== "mandoob") {
             return res.status(403).json({
                 message: "Call center can only create delivery man accounts"
             });
         }
 
-        if (req.user.role === "delivery_man") {
+        if (req.user.role === "mandoob") {
             return res.status(403).json({
                 message: "You are not allowed to create users"
             });
