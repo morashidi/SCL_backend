@@ -130,7 +130,7 @@ const listUsers = async (req, res) => {
             User.countDocuments(filter),
             User.find(filter)
                 .select("-password")
-                .sort({ createdAt: -1, _id: -1 })
+                .sort({ createdAt: -1, })
                 .skip((page - 1) * pageSize)
                 .limit(pageSize)
         ]);
