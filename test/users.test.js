@@ -355,6 +355,35 @@ describe("User routes", () => {
             assert.strictEqual(secondPage.body.page, 2);
             assert.strictEqual(secondPage.body.items.length, 1);
         });
+
+        it("does not include deleted users", async () => {
+            const { token } = await seedAndLogin({
+                name: "Admin User",
+                username: "admin",
+                password,
+                role: "admin",
+            });
+
+            const target = await seedUser({
+                name: "Call Center",
+                username: "agent1",
+                password,
+                role: "call_center",
+            });
+
+            await request(app)
+                .delete(`/api/users/${target._id}`)
+                .set(authHeader(token));
+
+            const res = await request(app)
+                .get("/api/users")
+                .set(authHeader(token));
+
+            assert.strictEqual(res.status, 200);
+            assert.strictEqual(res.body.total, 1);
+            assert.ok(res.body.items.every((user) => user.username !== "agent1"));
+            assert.ok(res.body.items.every((user) => user.status !== "deleted"));
+        });
     });
 
     describe("GET /api/users/:userId", () => {
@@ -406,6 +435,33 @@ describe("User routes", () => {
             assert.strictEqual(res.body.user.role, "call_center");
             assert.strictEqual(res.body.user.password, undefined);
             assert.strictEqual(String(res.body.user.id), String(target._id));
+        });
+
+        it("returns 404 when the user is deleted", async () => {
+            const { token } = await seedAndLogin({
+                name: "Admin User",
+                username: "admin",
+                password,
+                role: "admin",
+            });
+
+            const target = await seedUser({
+                name: "Call Center",
+                username: "agent1",
+                password,
+                role: "call_center",
+            });
+
+            await request(app)
+                .delete(`/api/users/${target._id}`)
+                .set(authHeader(token));
+
+            const res = await request(app)
+                .get(`/api/users/${target._id}`)
+                .set(authHeader(token));
+
+            assert.strictEqual(res.status, 404);
+            assert.strictEqual(res.body.message, "User not found");
         });
     });
 
@@ -636,7 +692,8 @@ describe("User routes", () => {
             assert.strictEqual(res.status, 204);
 
             const deleted = await User.findById(target._id);
-            assert.strictEqual(deleted, null);
+            assert.ok(deleted);
+            assert.strictEqual(deleted.status, "deleted");
         });
 
         it("lets a call center delete a delivery man account", async () => {
@@ -661,7 +718,35 @@ describe("User routes", () => {
             assert.strictEqual(res.status, 204);
 
             const deleted = await User.findById(target._id);
-            assert.strictEqual(deleted, null);
+            assert.ok(deleted);
+            assert.strictEqual(deleted.status, "deleted");
+        });
+
+        it("returns 404 when deleting an already deleted user", async () => {
+            const { token } = await seedAndLogin({
+                name: "Admin User",
+                username: "admin",
+                password,
+                role: "admin",
+            });
+
+            const target = await seedUser({
+                name: "Call Center",
+                username: "agent1",
+                password,
+                role: "call_center",
+            });
+
+            await request(app)
+                .delete(`/api/users/${target._id}`)
+                .set(authHeader(token));
+
+            const res = await request(app)
+                .delete(`/api/users/${target._id}`)
+                .set(authHeader(token));
+
+            assert.strictEqual(res.status, 404);
+            assert.strictEqual(res.body.message, "User not found");
         });
     });
 });

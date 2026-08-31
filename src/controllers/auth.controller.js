@@ -17,7 +17,7 @@ const login = async (req, res) => {
       username: username.toLowerCase(),
     });
 
-    if (!user) {
+    if (!user || user.status === 'deleted') {
       return res.status(401).json({
         message: 'Invalid username or password',
       });

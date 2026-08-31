@@ -85,6 +85,18 @@ describe("Auth routes", () => {
             assert.strictEqual(res.body.user.username, "admin");
         });
 
+        it("returns 401 when the user is deleted", async () => {
+            await User.updateOne(
+                { username: "admin" },
+                { status: "deleted" },
+            );
+
+            const res = await login(credentials);
+
+            assert.strictEqual(res.status, 401);
+            assert.strictEqual(res.body.message, "Invalid username or password");
+        });
+
         it("returns a token and public user fields on success", async () => {
             const res = await login(credentials);
 

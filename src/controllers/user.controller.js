@@ -14,6 +14,7 @@ const toPublicUser = (user) => ({
     name: user.name,
     username: user.username,
     role: user.role,
+    status: user.status,
 });
 
 const canManageUser = (actor, target) => {
@@ -24,7 +25,7 @@ const canManageUser = (actor, target) => {
 };
 
 const isSameUser = (actor, target) => {
-    return String(actor._id) === String(target._id);
+    return actor._id.toString() === target._id.toString();
 };
 
 const findUserById = async (userId) => {
@@ -32,11 +33,10 @@ const findUserById = async (userId) => {
         return null;
     }
 
-    return User.findById(userId);
-};
-
-const escapeRegex = (value) => {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return User.findOne({
+        _id: userId,
+        status: { $ne: "deleted" },
+    });
 };
 
 const createUser = async (req, res) => {
@@ -111,14 +111,16 @@ const listUsers = async (req, res) => {
         );
         const { role, search } = req.query;
 
-        const filter = {};
+        const filter = {
+            status: { $ne: "deleted" },
+        };
 
         if (role) {
             filter.role = role;
         }
 
         if (search) {
-            const pattern = new RegExp(escapeRegex(String(search)), "i");
+            const pattern = new RegExp(search, "i");
 
             filter.$or = [
                 { name: pattern },
@@ -230,7 +232,8 @@ const deleteUser = async (req, res) => {
         }
 
         await Token.deleteMany({ userId: user._id });
-        await user.deleteOne();
+        user.status = "deleted";
+        await user.save();
 
         return res.status(204).send();
     } catch (error) {

@@ -26,6 +26,12 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "call_center", "mandoob"],
       required: true,
     },
+
+    status: {
+      type: String,
+      enum: ["active", "deleted"],
+      default: "active",
+    },
   },
   {
     timestamps: true,

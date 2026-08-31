@@ -33,7 +33,7 @@ const protect = async (req, res, next) => {
         }
 
         const user = await User.findById(decoded.userId).select("-password");
-        if (!user) {
+        if (!user || user.status === "deleted") {
             return res.status(401).json({
                 message: "User not found"
             });
