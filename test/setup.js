@@ -3,6 +3,8 @@ const { MongoMemoryServer } = require("mongodb-memory-server");
 
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "test-jwt-secret";
+process.env.MONGOMS_STARTUP_TIMEOUT =
+    process.env.MONGOMS_STARTUP_TIMEOUT || "60000";
 
 let mongoServer;
 

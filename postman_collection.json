@@ -1,0 +1,2511 @@
+{
+  "info": {
+    "_postman_id": "8f3d1c52-7a41-4e6b-9c0d-1a2b3c4d5e6f",
+    "name": "SCL Backend - Delivery Workforce API",
+    "description": "Delivery Workforce Recruitment & Management System API.\n\n## How to use\n1. Set the `baseUrl` collection variable (default `http://localhost:5000/v1`).\n2. Run **Auth > Login** - it stores the token in the `accessToken` collection variable.\n3. Every other request inherits Bearer auth from the collection.\n\nRequests that create something save the new id into the matching collection variable, so a folder can be run top-to-bottom without copy-pasting IDs.\n\nOptional query params (paging, filters) are included but **disabled** - tick them in the Params tab to use them.\nFile uploads use form-data: select a local file in the `file` row before sending.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Login and token management.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Log in with username/phone and password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"karim.adel\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "const access = res.accessToken || res.token;",
+                  "if (access) pm.collectionVariables.set(\"accessToken\", access);",
+                  "if (res.refreshToken) pm.collectionVariables.set(\"refreshToken\", res.refreshToken);",
+                  "if (res.user && (res.user.id || res.user._id)) {",
+                  "    pm.collectionVariables.set(\"userId\", res.user.id || res.user._id);",
+                  "}",
+                  "",
+                  "pm.test(\"Login succeeded\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(access, \"access token in response\").to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const res = pm.response.json();",
+                  "const access = res.accessToken || res.token;",
+                  "if (access) pm.collectionVariables.set(\"accessToken\", access);",
+                  "if (res.refreshToken) pm.collectionVariables.set(\"refreshToken\", res.refreshToken);",
+                  "if (res.user && (res.user.id || res.user._id)) {",
+                  "    pm.collectionVariables.set(\"userId\", res.user.id || res.user._id);",
+                  "}",
+                  "",
+                  "pm.test(\"Login succeeded\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(access, \"access token in response\").to.be.a(\"string\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Get the currently logged-in user."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users & Roles",
+      "description": "User accounts, roles and permissions.",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "role",
+                  "value": "CALL_CENTER",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "The role you can create depends on your own role: System Admin can create anyone; Owner/Admin can create Call Center, Finance and Mandoob; Call Center can create Mandoob only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ahmed Hassan\",\n  \"username\": \"ahmed.hassan\",\n  \"phone\": \"01000000000\",\n  \"password\": \"password123\",\n  \"role\": \"CALL_CENTER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"userId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ahmed Hassan\",\n  \"phone\": \"01000000001\",\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "You cannot remove a role above your own. The System Administrator user can never be removed."
+          },
+          "response": []
+        },
+        {
+          "name": "List roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "roles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "roles"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Supervisor\",\n  \"permissions\": [\n    \"loans.approve\",\n    \"deductions.create\",\n    \"users.create\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"roleId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/roles/{{roleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "roles",
+                "{{roleId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Supervisor\",\n  \"permissions\": [\n    \"loans.approve\",\n    \"deductions.create\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Leads",
+      "description": "Phone number leads for the call center.",
+      "item": [
+        {
+          "name": "List leads",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "INTERESTED",
+                  "disabled": true
+                },
+                {
+                  "key": "assignedAgentId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create leads (single or bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/leads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leads\": [\n    {\n      \"name\": \"Mahmoud Ali\",\n      \"phone\": \"01111111111\",\n      \"assignedAgentId\": \"{{userId}}\"\n    },\n    {\n      \"name\": \"Sara Ibrahim\",\n      \"phone\": \"01222222222\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"leadId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get lead",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reschedule lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/leads/{{leadId}}/reschedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "leads",
+                "{{leadId}}",
+                "reschedule"
+              ]
+            },
+            "description": "Flag a declined lead for a callback. Reschedule to the same agent later, or reassign to another agent.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scheduledAt\": \"2026-02-01T10:00:00Z\",\n  \"reassignToAgentId\": \"{{userId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Calls",
+      "description": "Call logging and AI call review.",
+      "item": [
+        {
+          "name": "List calls",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/calls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calls"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "agentId",
+                  "value": "{{userId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "leadId",
+                  "value": "{{leadId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "outcome",
+                  "value": "INTERESTED",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Log a call",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calls"
+              ]
+            },
+            "description": "The lead's phone number is checked against the blocklist first; a blocked number is rejected with 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leadId\": \"{{leadId}}\",\n  \"outcome\": \"INTERESTED\",\n  \"note\": \"Candidate asked to visit the office tomorrow.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"callId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get call",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/calls/{{callId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calls",
+                "{{callId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Attach AI review",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/calls/{{callId}}/ai-review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calls",
+                "{{callId}}",
+                "ai-review"
+              ]
+            },
+            "description": "The mobile app runs the STT + LLM pipeline and sends the detected status, summary and quality score here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"detectedStatus\": \"INTERESTED\",\n  \"matchesAgent\": true,\n  \"summary\": \"Candidate is interested and will come to the office.\",\n  \"qualityScore\": 87\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload call recording",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/calls/{{callId}}/recording",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calls",
+                "{{callId}}",
+                "recording"
+              ]
+            },
+            "description": "Pick an audio file in the Body > form-data `file` row before sending.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get call recording",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/calls/{{callId}}/recording",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "calls",
+                "{{callId}}",
+                "recording"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mandoobs",
+      "description": "Candidate / employee profiles.",
+      "item": [
+        {
+          "name": "List mandoobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "disabled": true
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "city",
+                  "value": "Cairo",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create mandoob",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs"
+              ]
+            },
+            "description": "The phone number and national ID are checked against the blocklist first; a match prevents creation (409).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mahmoud Ali\",\n  \"phone\": \"01111111111\",\n  \"nationalId\": \"29801011234567\",\n  \"licensePictureUrl\": \"https://example.com/license.jpg\",\n  \"vehicleType\": \"BICYCLE\",\n  \"kind\": \"MANDOOB\",\n  \"cities\": [\n    \"Cairo\",\n    \"Giza\"\n  ],\n  \"payoutRecipient\": {\n    \"recipientName\": \"Mahmoud Ali\",\n    \"accountOrWalletNumber\": \"01111111111\",\n    \"isBigMandoob\": false\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"mandoobId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get mandoob",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update mandoob",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mahmoud Ali\",\n  \"vehicleType\": \"SMALL_PICKUP\",\n  \"cities\": [\n    \"Cairo\"\n  ],\n  \"status\": \"ACTIVE\",\n  \"payoutRecipient\": {\n    \"recipientName\": \"Big Mandoob Khaled\",\n    \"accountOrWalletNumber\": \"01333333333\",\n    \"isBigMandoob\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List mandoob companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}",
+                "companies"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Link company to mandoob",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}",
+                "companies"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"starId\": \"STAR-12345\",\n  \"username\": \"mahmoud.ali\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"linkId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update mandoob company link",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}/companies/{{linkId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}",
+                "companies",
+                "{{linkId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"starId\": \"STAR-99999\",\n  \"username\": \"mahmoud.ali\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unlink company",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}/companies/{{linkId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}",
+                "companies",
+                "{{linkId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mandoob salary history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}/salaries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}",
+                "salaries"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mandoob loan history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}/loans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}",
+                "loans"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mandoob deduction history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/mandoobs/{{mandoobId}}/deductions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "mandoobs",
+                "{{mandoobId}}",
+                "deductions"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Companies",
+      "description": "Third-party companies mandoobs are placed with.",
+      "item": [
+        {
+          "name": "List companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Talabat\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"companyId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get company",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{companyId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update company",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{companyId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Talabat Egypt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Training",
+      "description": "Training sessions and assignments.",
+      "item": [
+        {
+          "name": "List training sessions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/training-sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "training-sessions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create training session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/training-sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "training-sessions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"scheduledAt\": \"2026-02-10T09:00:00Z\",\n  \"durationMinutes\": 120,\n  \"requiredStayMinutes\": 60,\n  \"zone\": {\n    \"latitude\": 30.0444,\n    \"longitude\": 31.2357,\n    \"radiusMeters\": 100\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"sessionId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get training session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/training-sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "training-sessions",
+                "{{sessionId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List session assignments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/training-sessions/{{sessionId}}/assignments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "training-sessions",
+                "{{sessionId}}",
+                "assignments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign mandoob to session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/training-sessions/{{sessionId}}/assignments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "training-sessions",
+                "{{sessionId}}",
+                "assignments"
+              ]
+            },
+            "description": "On assignment the mandoob receives an in-app notification to attend.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandoobId\": \"{{mandoobId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"assignmentId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "description": "Call center BLE, training and job attendance.",
+      "item": [
+        {
+          "name": "Call center BLE check-in / check-out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/attendance/call-center",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendance",
+                "call-center"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beaconValue\": \"OFFICE-BEACON-01\",\n  \"type\": \"CHECK_IN\",\n  \"recordedAt\": \"2026-02-01T08:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Report training location event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/attendance/training",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendance",
+                "training"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assignmentId\": \"{{assignmentId}}\",\n  \"latitude\": 30.0444,\n  \"longitude\": 31.2357,\n  \"recordedAt\": \"2026-02-10T09:05:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload job location points (batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/attendance/locations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendance",
+                "locations"
+              ]
+            },
+            "description": "The app captures a point every 5 minutes and sends batches every 10 minutes; offline points are replayed here on reconnect.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"points\": [\n    {\n      \"mandoobId\": \"{{mandoobId}}\",\n      \"latitude\": 30.0444,\n      \"longitude\": 31.2357,\n      \"recordedAt\": \"2026-02-01T09:00:00Z\"\n    },\n    {\n      \"mandoobId\": \"{{mandoobId}}\",\n      \"latitude\": 30.05,\n      \"longitude\": 31.24,\n      \"recordedAt\": \"2026-02-01T09:05:00Z\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Live mandoob locations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attendance/locations/live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendance",
+                "locations",
+                "live"
+              ],
+              "query": [
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "city",
+                  "value": "Cairo",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Blocklist",
+      "description": "Blocked phone numbers / national IDs.",
+      "item": [
+        {
+          "name": "List block entries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/blocklist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blocklist"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "active",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create block entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/blocklist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blocklist"
+              ]
+            },
+            "description": "At least one of phone or nationalId is required.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"01444444444\",\n  \"nationalId\": \"29801011234567\",\n  \"reason\": \"Repeated no-shows\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"entryId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Check phone / national ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/blocklist/check?phone=01444444444",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blocklist",
+                "check"
+              ],
+              "query": [
+                {
+                  "key": "phone",
+                  "value": "01444444444"
+                },
+                {
+                  "key": "nationalId",
+                  "value": "29801011234567",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Unblock entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/blocklist/{{entryId}}/unblock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "blocklist",
+                "{{entryId}}",
+                "unblock"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Manager approved re-hire\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Loans",
+      "description": "Loan requests and approvals.",
+      "item": [
+        {
+          "name": "List loans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/loans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loans"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "mandoobId",
+                  "value": "{{mandoobId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Request a loan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loans"
+              ]
+            },
+            "description": "Requested by the mandoob (mobile app) or by the call center on their behalf. `installmentAmount` is optional - it defaults to principal / installmentsCount.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandoobId\": \"{{mandoobId}}\",\n  \"principal\": 3000,\n  \"installmentsCount\": 3,\n  \"installmentAmount\": 1000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"loanId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get loan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/loans/{{loanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loans",
+                "{{loanId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Approve / reject loan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/loans/{{loanId}}/decision",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "loans",
+                "{{loanId}}",
+                "decision"
+              ]
+            },
+            "description": "To approve a loan for a mandoob flagged as not eligible, set `exception: true` and give a reason; the override is recorded.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"APPROVE\",\n  \"exception\": false,\n  \"reason\": \"Eligible - good attendance record\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Deductions",
+      "description": "Salary deductions.",
+      "item": [
+        {
+          "name": "List deductions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deductions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deductions"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "mandoobId",
+                  "value": "{{mandoobId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "LOAN_REPAYMENT",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Record a deduction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deductions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deductions"
+              ]
+            },
+            "description": "Automatically factored into the next salary calculation.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandoobId\": \"{{mandoobId}}\",\n  \"type\": \"LOAN_REPAYMENT\",\n  \"amount\": 1000,\n  \"reason\": \"Installment 1 of 3\",\n  \"loanId\": \"{{loanId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"deductionId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update deduction",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deductions/{{deductionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deductions",
+                "{{deductionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandoobId\": \"{{mandoobId}}\",\n  \"type\": \"DAMAGE\",\n  \"amount\": 250,\n  \"reason\": \"Broken delivery box\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Salaries",
+      "description": "Monthly salary import from third-party companies.",
+      "item": [
+        {
+          "name": "List salary imports",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/salaries/imports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "salaries",
+                "imports"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Upload salary Excel (validate)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/salaries/imports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "salaries",
+                "imports"
+              ]
+            },
+            "description": "Upload the standardized Excel file for one company + period. It is validated but NOT committed; validation flags unmatched IDs, duplicate rows and missing fields. Pick the file in Body > form-data.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "type": "text"
+                },
+                {
+                  "key": "period",
+                  "value": "{{period}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"importId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get salary import",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/salaries/imports/{{importId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "salaries",
+                "imports",
+                "{{importId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Commit salary import",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/salaries/imports/{{importId}}/commit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "salaries",
+                "imports",
+                "{{importId}}",
+                "commit"
+              ]
+            },
+            "description": "Creates the salary lines for the period once the reviewer approves. Returns 409 if the batch has blocking validation errors."
+          },
+          "response": []
+        },
+        {
+          "name": "List salary lines",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/salaries/lines",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "salaries",
+                "lines"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "mandoobId",
+                  "value": "{{mandoobId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "companyId",
+                  "value": "{{companyId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "period",
+                  "value": "{{period}}",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add salary line manually",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/salaries/lines",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "salaries",
+                "lines"
+              ]
+            },
+            "description": "Used when the Excel file has no starId column, or for one-off entries.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandoobId\": \"{{mandoobId}}\",\n  \"companyId\": \"{{companyId}}\",\n  \"period\": \"{{period}}\",\n  \"totalSalary\": 7500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "description": "Salary disbursement records.",
+      "item": [
+        {
+          "name": "List payments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "pageSize",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "mandoobId",
+                  "value": "{{mandoobId}}",
+                  "disabled": true
+                },
+                {
+                  "key": "period",
+                  "value": "{{period}}",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Record a manual payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            },
+            "description": "Records a payment made outside the system. `netAmount` is an optional override - otherwise it is salary minus deductions. Attach the proof via 'Attach payment screenshot'.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mandoobId\": \"{{mandoobId}}\",\n  \"period\": \"{{period}}\",\n  \"method\": \"VODAFONE_CASH\",\n  \"netAmount\": 6500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "    const res = pm.response.json();",
+                  "    const body = Array.isArray(res) ? res[0] : res;",
+                  "    const id = body && (body.id || body._id);",
+                  "    if (id) pm.collectionVariables.set(\"paymentId\", id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Trigger payout run",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/payout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "payout"
+              ]
+            },
+            "description": "Optional path used when a wallet/bank payout API (Vodafone Cash, Paymob, ...) is integrated.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period\": \"{{period}}\",\n  \"mandoobIds\": [\n    \"{{mandoobId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get payment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Attach payment screenshot",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}/screenshot",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}",
+                "screenshot"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Owner dashboard KPIs.",
+      "item": [
+        {
+          "name": "KPI summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-01-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Agent leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/dashboard/agent-leaderboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "dashboard",
+                "agent-leaderboard"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-01-31",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "period",
+      "value": "2026-01",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "roleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "leadId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "callId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mandoobId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "companyId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "linkId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assignmentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "entryId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "loanId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deductionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "importId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

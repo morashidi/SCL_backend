@@ -1,254 +1,301 @@
-﻿const bcrypt = require("bcryptjs");
+const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
 const User = require("../models/user.model");
 const Token = require("../models/token.model");
+const { toUser } = require("../utils/serializers");
+const { parsePagination, escapeRegex } = require("../utils/pagination");
+const {
+  ROLES,
+  toSpecRole,
+  toInternalRole,
+  rankOf,
+  canCreateRole,
+  rolesBelow,
+} = require("../utils/roles");
 
-const ROLE_RANK = {
-    admin: 3,
-    recruiter: 2,
-    mandoob: 1,
-};
+const MIN_PASSWORD_LENGTH = 8;
 
-const toPublicUser = (user) => ({
-    id: user._id,
-    name: user.name,
-    username: user.username,
-    role: user.role,
-    status: user.status,
-});
+const SEES_EVERYONE = ["system_admin", "admin"];
 
-const canManageUser = (actor, target) => {
-    const actorRank = ROLE_RANK[actor.role] || 0;
-    const targetRank = ROLE_RANK[target.role] || 0;
+const forbidden = (res, message) =>
+  res.status(403).json({ code: "FORBIDDEN", message });
 
-    return actorRank > targetRank;
-};
+const notFound = (res, message = "User not found") =>
+  res.status(404).json({ code: "NOT_FOUND", message });
 
-const isSameUser = (actor, target) => {
-    return actor._id.toString() === target._id.toString();
-};
+const invalid = (res, message, details) =>
+  res.status(422).json({
+    code: "VALIDATION_ERROR",
+    message,
+    ...(details && details.length > 0 ? { details } : {}),
+  });
+
+const conflict = (res, message) =>
+  res.status(409).json({ code: "DUPLICATE_KEY", message });
+
+const canManageUser = (actor, target) =>
+  rankOf(actor.role) > rankOf(target.role);
+
+const isSameUser = (actor, target) =>
+  actor._id.toString() === target._id.toString();
+
+const canViewUser = (actor, target) =>
+  SEES_EVERYONE.includes(actor.role) ||
+  isSameUser(actor, target) ||
+  canManageUser(actor, target);
 
 const findUserById = async (userId) => {
-    if (!mongoose.isValidObjectId(userId)) {
-        return null;
+  if (!mongoose.isValidObjectId(userId)) {
+    return null;
+  }
+
+  return User.findOne({ _id: userId, status: { $ne: "deleted" } });
+};
+
+const createUser = async (req, res, next) => {
+  try {
+    const { fullName, username, phone, password, role } = req.body || {};
+
+    const details = [];
+
+    if (!fullName) {
+      details.push({ field: "fullName", message: "fullName is required" });
     }
 
-    return User.findOne({
-        _id: userId,
-        status: { $ne: "deleted" },
+    if (!username) {
+      details.push({ field: "username", message: "username is required" });
+    }
+
+    if (!password) {
+      details.push({ field: "password", message: "password is required" });
+    } else if (String(password).length < MIN_PASSWORD_LENGTH) {
+      details.push({
+        field: "password",
+        message: `must be at least ${MIN_PASSWORD_LENGTH} characters`,
+      });
+    }
+
+    if (!role) {
+      details.push({ field: "role", message: "role is required" });
+    }
+
+    if (details.length > 0) {
+      return invalid(res, "Invalid input", details);
+    }
+
+    const internalRole = toInternalRole(role);
+
+    if (!internalRole) {
+      return invalid(res, `Unsupported role: ${role}`, [
+        {
+          field: "role",
+          message: `must be one of ${ROLES.map(toSpecRole).join(", ")}`,
+        },
+      ]);
+    }
+
+    if (!canCreateRole(req.user.role, internalRole)) {
+      return forbidden(
+        res,
+        `Your role cannot create ${toSpecRole(internalRole)} accounts`
+      );
+    }
+
+    const normalizedUsername = String(username).toLowerCase().trim();
+
+    const existingUser = await User.findOne({ username: normalizedUsername });
+
+    if (existingUser) {
+      return conflict(res, "Username already exists");
+    }
+
+    const user = await User.create({
+      fullName,
+      username: normalizedUsername,
+      phone: phone || null,
+      password: await bcrypt.hash(password, 10),
+      role: internalRole,
     });
-};
 
-const createUser = async (req, res) => {
-    try {
-        const { name, username, password, role } = req.body;
+    return res.status(201).json(toUser(user));
+  } catch (error) {
 
-        if (!name || !username || !password || !role) {
-            return res.status(400).json({
-                message: "Name, username, password and role are required"
-            });
-        }
-
-        const normalizedUsername = username.toLowerCase();
-
-        const existingUser = await User.findOne({
-            username: normalizedUsername
-        });
-
-        if (existingUser) {
-            return res.status(409).json({
-                message: "Username already exists"
-            });
-        }
-
-        if (req.user.role === "admin" && role !== "recruiter") {
-            return res.status(403).json({
-                message: "Admin can only create call center accounts"
-            });
-        }
-
-        if (req.user.role === "recruiter" && role !== "mandoob") {
-            return res.status(403).json({
-                message: "Call center can only create delivery man accounts"
-            });
-        }
-
-        if (req.user.role === "mandoob") {
-            return res.status(403).json({
-                message: "You are not allowed to create users"
-            });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const user = await User.create({
-            name,
-            username: normalizedUsername,
-            password: hashedPassword,
-            role
-        });
-
-        return res.status(201).json({
-            message: "User created successfully",
-            user: toPublicUser(user)
-        });
-
-    } catch (error) {
-        console.error("Create user error:", error);
-
-        return res.status(500).json({
-            message: "Server error"
-        });
+    if (error.code === 11000) {
+      return conflict(res, "Username already exists");
     }
+
+    return next(error);
+  }
 };
 
-const listUsers = async (req, res) => {
-    try {
-        const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
-        const pageSize = Math.min(
-            100,
-            Math.max(1, Number.parseInt(req.query.pageSize, 10) || 20)
+const listUsers = async (req, res, next) => {
+  try {
+    const { page, pageSize, skip } = parsePagination(req.query);
+    const { role, search } = req.query;
+
+    const filter = { status: { $ne: "deleted" } };
+    const conditions = [];
+
+    if (!SEES_EVERYONE.includes(req.user.role)) {
+      conditions.push({
+        $or: [
+          { role: { $in: rolesBelow(req.user.role) } },
+          { _id: req.user._id },
+        ],
+      });
+    }
+
+    if (role) {
+
+      filter.role = toInternalRole(role) || "__none__";
+    }
+
+    if (search) {
+      const pattern = new RegExp(escapeRegex(String(search)), "i");
+
+      conditions.push({
+        $or: [{ fullName: pattern }, { username: pattern }, { phone: pattern }],
+      });
+    }
+
+    if (conditions.length > 0) {
+      filter.$and = conditions;
+    }
+
+    const [total, users] = await Promise.all([
+      User.countDocuments(filter),
+      User.find(filter)
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(pageSize),
+    ]);
+
+    return res.status(200).json({
+      page,
+      pageSize,
+      total,
+      items: users.map(toUser),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const getUser = async (req, res, next) => {
+  try {
+    const user = await findUserById(req.params.userId);
+
+    if (!user) {
+      return notFound(res);
+    }
+
+    if (!canViewUser(req.user, user)) {
+      return forbidden(res, "You are not allowed to view this user");
+    }
+
+    return res.status(200).json(toUser(user));
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const updateUser = async (req, res, next) => {
+  try {
+    const user = await findUserById(req.params.userId);
+
+    if (!user) {
+      return notFound(res);
+    }
+
+    if (!isSameUser(req.user, user) && !canManageUser(req.user, user)) {
+      return forbidden(res, "You are not allowed to update this user");
+    }
+
+    const { fullName, phone, password, active } = req.body || {};
+
+    if (
+      password !== undefined &&
+      String(password).length < MIN_PASSWORD_LENGTH
+    ) {
+      return invalid(res, "Invalid input", [
+        {
+          field: "password",
+          message: `must be at least ${MIN_PASSWORD_LENGTH} characters`,
+        },
+      ]);
+    }
+
+    if (fullName !== undefined) {
+      user.fullName = fullName;
+    }
+
+    if (phone !== undefined) {
+      user.phone = phone || null;
+    }
+
+    if (password !== undefined) {
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    if (active !== undefined) {
+
+      if (!canManageUser(req.user, user)) {
+        return forbidden(res, "You are not allowed to change active status");
+      }
+
+      user.status = active ? "active" : "inactive";
+
+      if (!active) {
+        await Token.updateMany(
+          { userId: user._id, status: "active" },
+          { status: "inactive" }
         );
-        const { role, search } = req.query;
-
-        const filter = {
-            status: { $ne: "deleted" },
-        };
-
-        if (role) {
-            filter.role = role;
-        }
-
-        if (search) {
-            const pattern = new RegExp(search, "i");
-
-            filter.$or = [
-                { name: pattern },
-                { username: pattern }
-            ];
-        }
-
-        const [total, users] = await Promise.all([
-            User.countDocuments(filter),
-            User.find(filter)
-                .select("-password")
-                .sort({ createdAt: -1, })
-                .skip((page - 1) * pageSize)
-                .limit(pageSize)
-        ]);
-
-        return res.status(200).json({
-            page,
-            pageSize,
-            total,
-            items: users.map(toPublicUser)
-        });
-    } catch (error) {
-        console.error("List users error:", error);
-
-        return res.status(500).json({
-            message: "Server error"
-        });
+      }
     }
+
+    await user.save();
+
+    return res.status(200).json(toUser(user));
+  } catch (error) {
+    return next(error);
+  }
 };
 
-const getUser = async (req, res) => {
-    try {
-        const user = await findUserById(req.params.userId);
+const deleteUser = async (req, res, next) => {
+  try {
+    const user = await findUserById(req.params.userId);
 
-        if (!user) {
-            return res.status(404).json({
-                message: "User not found"
-            });
-        }
-
-        return res.status(200).json({
-            user: toPublicUser(user)
-        });
-    } catch (error) {
-        console.error("Get user error:", error);
-
-        return res.status(500).json({
-            message: "Server error"
-        });
+    if (!user) {
+      return notFound(res);
     }
-};
 
-const updateUser = async (req, res) => {
-    try {
-        const user = await findUserById(req.params.userId);
-
-        if (!user) {
-            return res.status(404).json({
-                message: "User not found"
-            });
-        }
-
-        if (!isSameUser(req.user, user) && !canManageUser(req.user, user)) {
-            return res.status(403).json({
-                message: "You are not allowed to update this user"
-            });
-        }
-
-        const { name, password } = req.body;
-
-        if (name) {
-            user.name = name;
-        }
-
-        if (password) {
-            user.password = await bcrypt.hash(password, 10);
-        }
-
-        await user.save();
-
-        return res.status(200).json({
-            message: "User updated successfully",
-            user: toPublicUser(user)
-        });
-    } catch (error) {
-        console.error("Update user error:", error);
-
-        return res.status(500).json({
-            message: "Server error"
-        });
+    if (user.role === "system_admin") {
+      return forbidden(
+        res,
+        "The System Administrator account cannot be removed"
+      );
     }
-};
 
-const deleteUser = async (req, res) => {
-    try {
-        const user = await findUserById(req.params.userId);
-
-        if (!user) {
-            return res.status(404).json({
-                message: "User not found"
-            });
-        }
-
-        if (!canManageUser(req.user, user)) {
-            return res.status(403).json({
-                message: "You are not allowed to delete this user"
-            });
-        }
-
-        await Token.deleteMany({ userId: user._id });
-        user.status = "deleted";
-        await user.save();
-
-        return res.status(204).send();
-    } catch (error) {
-        console.error("Delete user error:", error);
-
-        return res.status(500).json({
-            message: "Server error"
-        });
+    if (!canManageUser(req.user, user)) {
+      return forbidden(res, "You are not allowed to delete this user");
     }
+
+    await Token.deleteMany({ userId: user._id });
+
+    user.status = "deleted";
+    await user.save();
+
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
 };
 
 module.exports = {
-    createUser,
-    listUsers,
-    getUser,
-    updateUser,
-    deleteUser
+  createUser,
+  listUsers,
+  getUser,
+  updateUser,
+  deleteUser,
 };

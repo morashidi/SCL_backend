@@ -1,77 +1,90 @@
 const bcrypt = require("bcryptjs");
 const request = require("supertest");
-const jwt = require("jsonwebtoken");
 const User = require("../src/models/user.model");
-const Token = require("../src/models/token.model");
 const app = require("../src/app");
+const { issueTokens } = require("../src/controllers/auth.controller");
+
+const API = "/v1";
+
+let counter = 0;
+
+const unique = (prefix) => {
+  counter += 1;
+
+  return `${prefix}${Date.now().toString(36)}${counter}`;
+};
 
 async function seedUser({
-    name = "Test User",
-    username,
-    password,
+  fullName = "Test User",
+  username,
+  password = "Passw0rd!",
+  role,
+  phone = null,
+  status = "active",
+} = {}) {
+  return User.create({
+    fullName,
+    username: (username || unique("user")).toLowerCase(),
+    password: await bcrypt.hash(password, 4),
     role,
-}) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    return User.create({
-        name,
-        username: username.toLowerCase(),
-        password: hashedPassword,
-        role,
-    });
+    phone,
+    status,
+  });
 }
 
-async function login(credentials) {
-    return request(app)
-        .post("/api/auth/login")
-        .send(credentials);
+async function login({ username, password = "Passw0rd!" }) {
+  return request(app).post(`${API}/auth/login`).send({ username, password });
 }
 
-async function seedAndLogin(userAttrs) {
-    const user = await seedUser(userAttrs);
-    const res = await login({
-        username: userAttrs.username,
-        password: userAttrs.password,
-    });
+async function actor(role, overrides = {}) {
+  const password = overrides.password || "Passw0rd!";
+  const user = await seedUser({ ...overrides, role, password });
+  const tokens = await issueTokens(user);
 
-    return {
-        user,
-        token: res.body.token,
-        loginResponse: res,
-    };
+  return {
+    user,
+    id: user._id.toString(),
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  };
 }
 
-function authHeader(token) {
-    return { Authorization: `Bearer ${token}` };
-}
+const authHeader = (token) => ({ Authorization: `Bearer ${token}` });
 
-async function issueStoredToken(user, overrides = {}) {
-    const token = jwt.sign(
-        {
-            userId: user._id,
-            role: user.role,
-            ...overrides.payload,
-        },
-        process.env.JWT_SECRET,
-        {
-            expiresIn: overrides.expiresIn || "7d",
-        },
-    );
+const as = (token) => {
+  const wrap = (method) => (url) =>
+    request(app)[method](`${API}${url}`).set(authHeader(token));
 
-    await Token.create({
-        token,
-        userId: overrides.userId || user._id,
-        status: overrides.status || "active",
-    });
+  return {
+    get: wrap("get"),
+    post: wrap("post"),
+    patch: wrap("patch"),
+    put: wrap("put"),
+    delete: wrap("delete"),
+  };
+};
 
-    return token;
-}
+const anon = () => {
+  const wrap = (method) => (url) => request(app)[method](`${API}${url}`);
+
+  return {
+    get: wrap("get"),
+    post: wrap("post"),
+    patch: wrap("patch"),
+    put: wrap("put"),
+    delete: wrap("delete"),
+  };
+};
 
 module.exports = {
-    app,
-    seedUser,
-    login,
-    seedAndLogin,
-    authHeader,
-    issueStoredToken,
+  API,
+  app,
+  request,
+  unique,
+  seedUser,
+  login,
+  actor,
+  authHeader,
+  as,
+  anon,
 };

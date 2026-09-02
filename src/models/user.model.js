@@ -1,8 +1,11 @@
 const mongoose = require("mongoose");
+const { ROLES } = require("../utils/roles");
+
+const STATUSES = ["active", "inactive", "deleted"];
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
+    fullName: {
       type: String,
       required: true,
       trim: true,
@@ -16,6 +19,13 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    phone: {
+      type: String,
+      trim: true,
+      default: null,
+      index: true,
+    },
+
     password: {
       type: String,
       required: true,
@@ -23,14 +33,16 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "recruiter", "mandoob"],
+      enum: ROLES,
       required: true,
+      index: true,
     },
 
     status: {
       type: String,
-      enum: ["active", "deleted"],
+      enum: STATUSES,
       default: "active",
+      index: true,
     },
   },
   {
@@ -38,4 +50,7 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+
+module.exports = User;
+module.exports.STATUSES = STATUSES;

@@ -1,17 +1,19 @@
 const express = require("express");
-
 const {
   getDashboardSummary,
+  getAgentLeaderboard,
 } = require("../controllers/dashboard.controller");
-
-const authMiddleware = require("../middleware/auth.middleware");
+const protect = require("../middleware/auth.middleware");
+const {
+  requireRole,
+  FINANCE_READERS,
+} = require("../middleware/authorize.middleware");
 
 const router = express.Router();
 
-router.get(
-  "/summary",
-  authMiddleware,
-  getDashboardSummary
-);
+router.use(protect, requireRole(FINANCE_READERS));
+
+router.get("/summary", getDashboardSummary);
+router.get("/agent-leaderboard", getAgentLeaderboard);
 
 module.exports = router;

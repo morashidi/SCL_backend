@@ -1,40 +1,44 @@
 const mongoose = require("mongoose");
+const { CALL_OUTCOMES } = require("./lead.model");
 
-const CallSchema = new mongoose.Schema(
+const callSchema = new mongoose.Schema(
   {
-    caller: {
-      type: String,
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
       required: true,
-      trim: true,
+      index: true,
     },
 
-    callee: {
-      type: String,
+    agentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
-      trim: true,
+      index: true,
     },
 
-    text: {
+    outcome: {
       type: String,
+      enum: CALL_OUTCOMES,
+      required: true,
+      index: true,
+    },
+
+    note: {
+      type: String,
+      trim: true,
       default: "",
-      trim: true,
     },
 
-    status: {
-      type: String,
-      enum: ["answered", "declined", "not_answered", "pending"],
-      default: "pending",
-    },
-
-    audio: {
+    recordingUrl: {
       type: String,
       default: null,
-      //required: null,    (لازم اس
     },
 
-    time: {
+    calledAt: {
       type: Date,
       default: Date.now,
+      index: true,
     },
   },
   {
@@ -42,4 +46,4 @@ const CallSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Call", CallSchema);
+module.exports = mongoose.model("Call", callSchema);
