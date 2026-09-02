@@ -4,3 +4,5 @@
 /backups
 /uploads
 .vercel
+.vscode
+.cursor
