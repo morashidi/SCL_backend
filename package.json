@@ -7,6 +7,9 @@
     "start": "node src/server.js",
     "test": "mocha"
   },
+  "engines": {
+    "node": "22.x"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -14,6 +17,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.5.0",
